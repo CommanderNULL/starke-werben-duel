@@ -25,6 +25,7 @@ class GameState(db.Model):
     game_type = db.Column(db.String(10))  # 'bot' или 'multiplayer'
     no_valid_moves_count = db.Column(db.Integer)
     game_status = db.Column(db.String(20))  # 'waiting', 'active', 'finished'
+    auto_draw_cards = db.Column(db.Boolean, default=False)  # По умолчанию не добирать карты автоматически
 
 def load_verbs():
     with open(os.path.join(app.static_folder, 'data', 'verbs.json'), 'r', encoding='utf-8') as f:
@@ -185,7 +186,7 @@ class Game:
                 return True
         return False
 
-    def save_state(self, game_id, player_name=None, opponent_name=None, game_type="bot"):
+    def save_state(self, game_id, player_name=None, opponent_name=None, game_type="bot", auto_draw_cards=False):
         # Получаем текущее состояние из базы данных, если оно существует
         existing_state = GameState.query.get(game_id)
         
@@ -213,6 +214,8 @@ class Game:
             
             if game_type:
                 existing_state.game_type = game_type
+            # Всегда сохраняем значение auto_draw_cards, независимо от того, True оно или False
+            existing_state.auto_draw_cards = auto_draw_cards
         else:
             # Создаем новую запись
             game_state = GameState(
@@ -226,7 +229,8 @@ class Game:
                 opponent_name=opponent_name,
                 game_type=game_type,
                 no_valid_moves_count=self.no_valid_moves_count,
-                game_status='waiting' if game_type == 'multiplayer' and not opponent_name else 'active'
+                game_status='waiting' if game_type == 'multiplayer' and not opponent_name else 'active',
+                auto_draw_cards=auto_draw_cards
             )
             db.session.add(game_state)
         
@@ -240,6 +244,7 @@ def create_new_game():
     data = request.json
     player_name = data.get('player_name')
     game_type = data.get('game_type', 'bot')  # по умолчанию игра с ботом
+    auto_draw_cards = data.get('auto_draw_cards', False)  # По умолчанию не добирать карты автоматически
     
     if not player_name:
         return jsonify({"success": False, "message": "Имя игрока обязательно"})
@@ -254,12 +259,13 @@ def create_new_game():
     if game_type == 'bot':
         games[game_id].current_turn = "player"
     
-    games[game_id].save_state(game_id, player_name, game_type=game_type)
+    games[game_id].save_state(game_id, player_name, game_type=game_type, auto_draw_cards=auto_draw_cards)
     
     return jsonify({
         "success": True, 
         "game_id": game_id,
-        "game_type": game_type
+        "game_type": game_type,
+        "auto_draw_cards": auto_draw_cards
     })
 
 @app.route("/game/<game_id>/join", methods=["POST"])
@@ -292,8 +298,9 @@ def join_game(game_id):
     
     return jsonify({
         "success": True,
-        "game_type": "multiplayer",
-        "opponent_name": game_state.player_name
+        "game_type": game_state.game_type,
+        "opponent_name": game_state.player_name,
+        "auto_draw_cards": game_state.auto_draw_cards
     })
 
 @app.route("/game/<game_id>/state", methods=["GET"])
@@ -341,7 +348,8 @@ def get_game_state(game_id):
             "player_name": player_name,
             "opponent_name": game_state.opponent_name if is_first_player else game_state.player_name,
             "is_my_turn": (game_state.current_turn == "player" and is_first_player) or 
-                        (game_state.current_turn == "opponent" and not is_first_player)
+                        (game_state.current_turn == "opponent" and not is_first_player),
+            "auto_draw_cards": game_state.auto_draw_cards
         }
         
         # Обновляем состояние игры в памяти
@@ -360,19 +368,20 @@ def get_game_state(game_id):
         # Отладка
         print(f"Игра с ботом, ход: {game.current_turn}")
         
-        # Проверяем возможность хода игрока
-        if game.current_turn == "player" and not game.check_if_playable():
-            print("У игрока нет возможности сделать ход, берет карту")
+        # Проверяем возможность хода игрока и настройку автоматического добора карт
+        if game.current_turn == "player" and not game.check_if_playable() and game_state.auto_draw_cards:
+            print("У игрока нет возможности сделать ход, берет карту автоматически")
             game.pull_one_more_card("player")
             bot_success, bot_message = game.bot_move()
-            game.save_state(game_id)
+            game.save_state(game_id, auto_draw_cards=game_state.auto_draw_cards)
         
         state = game.get_state()
+        state["auto_draw_cards"] = game_state.auto_draw_cards
         print(f"Возвращаемое состояние: {state}")
         return jsonify(state)
         
     # Сохраняем состояние для обычной игры (не с ботом)
-    game.save_state(game_id)
+    game.save_state(game_id, auto_draw_cards=game_state.auto_draw_cards)
     return jsonify(game.get_state())
 
 @app.route("/game/<game_id>/play", methods=["POST"])
@@ -446,7 +455,7 @@ def play_card(game_id):
             game.no_valid_moves_count = 0
             
             # Сохраняем все изменения в базу данных
-            game.save_state(game_id, game_state.player_name, game_state.opponent_name, game_state.game_type)
+            game.save_state(game_id, game_state.player_name, game_state.opponent_name, game_state.game_type, game_state.auto_draw_cards)
             
             return jsonify({"success": True, "message": "Карта успешно сыграна"})
         return jsonify({"success": False, "message": "Недопустимый ход!"})
@@ -454,7 +463,8 @@ def play_card(game_id):
     # Для игры с ботом
     success, message = game.play_card("player", tuple(data["card"]))
     if success:
-        game.save_state(game_id)
+        # Сохраняем текущее значение auto_draw_cards
+        game.save_state(game_id, auto_draw_cards=game_state.auto_draw_cards)
         return jsonify({"success": success, "message": message})
     return jsonify({"success": success, "message": message})
 
@@ -529,11 +539,11 @@ def draw_card(game_id):
     # Для игры с ботом
     if game.game_type == "bot" and game.current_turn == "opponent":
         bot_success, bot_message = game.bot_move()
-        game.save_state(game_id)
+        game.save_state(game_id, auto_draw_cards=game_state.auto_draw_cards)
         return jsonify({"success": True, "message": message, "bot_message": bot_message})
     else:
         # Сохраняем состояние для обычной игры (не с ботом)
-        game.save_state(game_id)
+        game.save_state(game_id, auto_draw_cards=game_state.auto_draw_cards)
     
     return jsonify({"success": True, "message": message})
 

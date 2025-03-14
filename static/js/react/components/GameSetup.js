@@ -4,9 +4,10 @@ const GameSetup = ({ onCreateGame, onJoinGame }) => {
   const [playerName, setPlayerName] = useState('');
   const [gameId, setGameId] = useState('');
   const [gameType, setGameType] = useState('bot');
+  const [autoDrawCards, setAutoDrawCards] = useState(false);
 
   const handleCreateGame = () => {
-    onCreateGame(playerName, gameType);
+    onCreateGame(playerName, gameType, autoDrawCards);
   };
 
   const handleJoinGame = () => {
@@ -46,6 +47,17 @@ const GameSetup = ({ onCreateGame, onJoinGame }) => {
                 onChange={() => setGameType('multiplayer')}
               />
               Игра с человеком
+            </label>
+          </div>
+          <div className="game-options">
+            <label className="auto-draw-option">
+              <input 
+                type="checkbox" 
+                name="auto-draw-cards"
+                checked={autoDrawCards}
+                onChange={() => setAutoDrawCards(!autoDrawCards)}
+              />
+              Добирать карты автоматически
             </label>
           </div>
           <div className="setup-actions">

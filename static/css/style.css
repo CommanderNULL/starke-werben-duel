@@ -70,7 +70,6 @@ body {
 .player-name {
     font-weight: bold;
     font-size: 1.1rem;
-    color: var(--card-bg);
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
@@ -502,6 +501,31 @@ body {
 }
 
 .game-type-selector input[type="radio"] {
+    margin: 0;
+}
+
+.game-options {
+    margin: 1rem 0;
+    display: flex;
+    justify-content: center;
+}
+
+.auto-draw-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.3s;
+}
+
+.auto-draw-option:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.auto-draw-option input[type="checkbox"] {
     margin: 0;
 }
 

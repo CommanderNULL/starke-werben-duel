@@ -62,8 +62,16 @@ class TestGame(unittest.TestCase):
 
     def test_multiplayer_game(self):
         """Проверка создания мультиплеерной игры"""
+        # Создаем новый экземпляр Game и сразу устанавливаем тип игры "multiplayer"
+        # перед раздачей карт
         game = Game()
+        # Сбрасываем состояние игры
+        game.players = {"player": [], "opponent": []}
+        game.discard_pile = []
         game.game_type = "multiplayer"
+        # Заново раздаем карты
+        game.deal_cards()
+        
         self.assertEqual(game.game_type, "multiplayer")
         self.assertEqual(len(game.players["player"]), 10)
         self.assertEqual(len(game.players["opponent"]), 10)

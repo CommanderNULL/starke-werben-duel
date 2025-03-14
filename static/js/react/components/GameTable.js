@@ -14,7 +14,8 @@ const GameTable = memo(({ gameState, onPlayCard, onDrawCard, hasValidMove }) => 
     isMyTurn, 
     gameOver, 
     winner,
-    waiting
+    waiting,
+    autoDrawCards
   } = gameState;
 
   // Отображение карт игрока
@@ -50,7 +51,7 @@ const GameTable = memo(({ gameState, onPlayCard, onDrawCard, hasValidMove }) => 
   };
 
   // Проверяем, должна ли быть показана кнопка взятия карты
-  const shouldShowDrawButton = isMyTurn && !hasValidMove() && !gameOver;
+  const shouldShowDrawButton = !gameOver && !autoDrawCards;
 
   return (
     <div className="game-table">
@@ -79,17 +80,17 @@ const GameTable = memo(({ gameState, onPlayCard, onDrawCard, hasValidMove }) => 
             Ожидание подключения второго игрока...
           </div>
         )}
-        {shouldShowDrawButton && (
-          <button className="draw-button" onClick={onDrawCard}>
-            Нет хода? Взять карту
-          </button>
-        )}
       </div>
 
       {/* Область игрока */}
       <div className="player-area">
         <div className="player-info">
           <span className="player-name">{playerName}</span>
+          {shouldShowDrawButton && (
+            <button className="draw-button" onClick={onDrawCard}>
+              Взять карту
+            </button>
+          )}
           <span className="card-count">{playerCards ? playerCards.length : 0}</span>
         </div>
         <div className="player-hand" id="player-cards">

@@ -16,7 +16,8 @@ const App = () => {
     opponentName: 'Противник',
     gameOver: false,
     winner: null,
-    waiting: false
+    waiting: false,
+    autoDrawCards: false
   });
 
   // Состояние уведомлений
@@ -115,7 +116,8 @@ const App = () => {
           opponentName: state.opponent_name || prevState.opponentName,
           gameOver: state.game_over || false,
           winner: state.winner || null,
-          waiting: state.status === 'waiting'
+          waiting: state.status === 'waiting',
+          autoDrawCards: state.auto_draw_cards !== undefined ? state.auto_draw_cards : prevState.autoDrawCards
         } : prevState;
       });
     } catch (error) {
@@ -124,7 +126,7 @@ const App = () => {
   };
 
   // Создание новой игры
-  const createNewGame = async (name, type) => {
+  const createNewGame = async (name, type, autoDrawCards = false) => {
     try {
       if (!name) {
         showNotification('Пожалуйста, введите ваше имя');
@@ -142,7 +144,8 @@ const App = () => {
         },
         body: JSON.stringify({ 
           player_name: name,
-          game_type: type
+          game_type: type,
+          auto_draw_cards: autoDrawCards
         })
       });
       
@@ -155,7 +158,8 @@ const App = () => {
           playerName: name,
           gameType: type,
           gameOver: false,
-          winner: null
+          winner: null,
+          autoDrawCards: data.auto_draw_cards
         });
         
         if (type === 'multiplayer') {
@@ -204,7 +208,8 @@ const App = () => {
           gameType: data.game_type,
           opponentName: data.opponent_name,
           gameOver: false,
-          winner: null
+          winner: null,
+          autoDrawCards: data.auto_draw_cards
         });
       } else {
         showNotification(data.message);
